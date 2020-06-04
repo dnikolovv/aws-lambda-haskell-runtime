@@ -12,6 +12,10 @@ import qualified Data.Maybe as Maybe
 import Data.Text (Text)
 import qualified Data.Text as Text
 
+import GHC.IO.Encoding (latin1)
+import GHC.IO.Handle (hGetContents, hSetEncoding)
+import GHC.IO.Handle.FD (openFile)
+import GHC.IO.IOMode (IOMode (..))
 import Path
 import qualified Path.IO as PathIO
 
@@ -55,12 +59,14 @@ handlerNames modules =
   & fmap (Text.pack . toFilePath)
  where
   changeExtensionToHandler file =
-    setFileExtension ".handler" file
+    replaceExtension ".handler" file
     & Maybe.fromJust  -- The path will be always parsable, as we just replace the extension
 
 containsHandler :: Path Rel File -> IO Bool
 containsHandler file = do
-  fileContents <- readFile $ toFilePath file
+  fileHandle <- openFile (toFilePath file) ReadMode
+  hSetEncoding fileHandle latin1
+  fileContents <- hGetContents fileHandle
   lines fileContents
     & filter (Text.isPrefixOf "handler :: " . Text.pack)
     & (not . null)
